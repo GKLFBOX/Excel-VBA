@@ -21,7 +21,7 @@ Public Sub RestoreLeader()
     Dim firstPoint As Variant
     Dim secondPoint As Variant
     firstPoint = ThisDrawing.Utility.GetPoint(, "引出線の1点目を指定 [Cancel(ESC)]")
-    secondPoint = ThisDrawing.Utility.GetPoint(fistPoint, "引出線の2点目を指定 [Cancel(ESC)]")
+    secondPoint = ThisDrawing.Utility.GetPoint(firstPoint, "引出線の2点目を指定 [Cancel(ESC)]")
     
     Dim pickPoint(5) As Double
     Dim i As Long
@@ -37,6 +37,29 @@ Public Sub RestoreLeader()
     Set annotationObject = Nothing
     
     Set newLeader = ThisDrawing.ModelSpace.AddLeader(pickPoint, annotationObject, leaderType)
+    newLeader.StyleName = "矢印スタイル名"
+    
+    ' 引出線作図の2点を利用して選択セットを作成
+    Dim newSelectionSet As AcadSelectionSet
+    Set newSelectionSet = ThisDrawing.SelectionSets.Add("NewSelSet")
+    
+    Dim selectMode As Integer
+    selectMode = acSelectionSetWindow
+    newSelectionSet.Select selectMode, firstPoint, secondPoint
+    
+    ' 不要な線と矢印ブロックの判定および削除
+    Dim checkObject As AcadEntity
+    For Each checkObject In newSelectionSet
+        
+        If TypeOf checkObject Is AcadLine Then
+            
+        End If
+        
+        If TypeOf checkObject Is AcadBlockReference Then
+            If checkObject.InsertionPoint = firstPoint Then checkObject.Delete
+        End If
+        
+    Next checkObject
     
     
 End Sub
