@@ -25,8 +25,8 @@ Option Explicit
 '------------------------------------------------------------------------------
 ' ## 設定ファイルのファイル名
 '------------------------------------------------------------------------------
-Private Const SHEET_CONFIG = "ExclusionarySheet.config"
-Private Const ROW_CONFIG = "ExclusionaryRow.config"
+Private Const SHEET_CONFIG As String = "\ExclusionarySheet.config"
+Private Const ROW_CONFIG As String = "\ExclusionaryRow.config"
 
 '------------------------------------------------------------------------------
 ' ## フォーム初期化
@@ -52,19 +52,11 @@ Private Sub UserForm_Initialize()
     With ExclusionarySheetBox
         .MultiLine = True                   ' 改行の有効化
         .ScrollBars = fmScrollBarsVertical  ' スクロールバー
-        
-        ' 設定ファイルの読み込み
-        Dim configSheet As String
-        Call LoadConfig.LoadConfig(SHEET_CONFIG, configSheet)
-        .Value = configSheet
     End With
     
-    With ExclusionaryRowBox
-        ' 設定ファイルの読み込み
-        Dim configRow As String
-        Call LoadConfig.LoadConfig(ROW_CONFIG, configRow)
-        .Value = configRow
-    End With
+    ' 設定ファイルの読み込み
+    ExclusionarySheetBox.Value = CommitConfig.LoadConfig(SHEET_CONFIG)
+    ExclusionaryRowBox.Value = CommitConfig.LoadConfig(ROW_CONFIG)
     
 End Sub
 
@@ -104,19 +96,22 @@ Private Sub ConversionButton_Click()
             sourceFilePath = .Item(1).SubItems(1)
             
             ' 設定値読み込み
-            Call LoadConfig.LoadExclusionarySheet _
+            Call CommitConfig.LoadExclusionarySheet _
                 (ExclusionarySheetBox.Value, exclusionarySheet)
-            Call LoadConfig.LoadExclusionaryRow _
+            Call CommitConfig.LoadExclusionaryRow _
                 (ExclusionaryRowBox.Value, exclusionaryRow)
             
             ' 変換実行
             Call ConvertDatabase.ConvertDatabase _
                 (sourceFilePath, exclusionarySheet, exclusionaryRow)
             
+            ' 設定フォルダの準備
+            Call CommitConfig.PrepareConfigFolder
+            
             ' 設定値保存
-            Call SaveConfig.SaveConfig _
+            Call CommitConfig.SaveConfig _
                 (SHEET_CONFIG, ExclusionarySheetBox.Value)
-            Call SaveConfig.SaveConfig _
+            Call CommitConfig.SaveConfig _
                 (ROW_CONFIG, ExclusionaryRowBox.Value)
         Else
             MsgBox "ファイルが指定されていません。", vbExclamation
@@ -130,6 +125,7 @@ End Sub
 '------------------------------------------------------------------------------
 Private Sub UserForm_Terminate()
     
-    'ThisWorkbook.Close
+    ' 編集時はコメントアウトすること
+    ThisWorkbook.Close
     
 End Sub

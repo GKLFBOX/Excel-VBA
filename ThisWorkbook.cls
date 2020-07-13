@@ -16,6 +16,19 @@ Attribute VB_Exposed = True
 '------------------------------------------------------------------------------
 Option Explicit
 
+'------------------------------------------------------------------------------
+' ## アドイン起動時
+'------------------------------------------------------------------------------
 Private Sub Workbook_Open()
-    'ConversionForm.Show vbModeless
+    Load ConversionForm
+    ConversionForm.Show vbModeless
+End Sub
+
+'------------------------------------------------------------------------------
+' ## アドイン終了時
+'------------------------------------------------------------------------------
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+    ' ブックが先に閉じてしまった場合エラーになるため
+    ' ブックを閉じる前に必ずUnloadしUserForm_Terminateを経由させる
+    Unload ConversionForm
 End Sub

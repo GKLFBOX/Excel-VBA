@@ -45,7 +45,8 @@ Public Sub ConvertDatabase(ByVal source_filepath As String, _
     Dim dataArray() As Variant
     
     ' 総行数および最大列記憶
-    Call fetchMatrixSize(sourceFile, rowSize, columnSize)
+    Call fetchMatrixSize(sourceFile, rowSize, columnSize, _
+        exclusionary_sheet, exclusionary_row)
     
     ' シート名および行番号の要素を確保
     columnSize = columnSize + ADDITION_COLUMN
@@ -103,27 +104,80 @@ End Sub
 '------------------------------------------------------------------------------
 Private Sub fetchMatrixSize(ByRef source_file As Workbook, _
                             ByRef row_size As Long, _
-                            ByRef column_size As Long)
+                            ByRef column_size As Long, _
+                            ByRef exclusionary_sheet() As String, _
+                            ByRef exclusionary_row() As String)
     
     Dim currentSheet As Worksheet
     Dim currentData As Variant
+    Dim skipSheet As Long, skipRowSize As Long
     Dim bufferSize As Long
     
-    ' HACK: 現状は最大値を記憶しているため値格納と同様に最適化する
     For Each currentSheet In source_file.Worksheets
-        ' UsedRangeで最大列および最大行の取得短縮化
-        currentData = currentSheet.UsedRange
-        If Not IsEmpty(currentData) Then
-            ' 総行数の更新および最大列の確認/更新
-            row_size = row_size + UBound(currentData, 1)
-            bufferSize = UBound(currentData, 2)
-            If bufferSize > column_size Then column_size = bufferSize
-            
-            Erase currentData
+        ' 除外シート名を照合
+        skipSheet = _
+            matchExclusionaryValue(exclusionary_sheet, currentSheet.Name)
+        If skipSheet <> 0 Then
+            ' UsedRangeで最大列および最大行の取得短縮化
+            currentData = currentSheet.UsedRange
+            If Not IsEmpty(currentData) Then
+                ' 除外行から減算行数の算出
+                skipRowSize = substractRowSize _
+                    (exclusionary_row, UBound(currentData, 1))
+                ' 総行数の更新
+                row_size = row_size + UBound(currentData, 1) - skipRowSize
+                ' 最大列の確認/更新
+                bufferSize = UBound(currentData, 2)
+                If bufferSize > column_size Then column_size = bufferSize
+                
+                Erase currentData
+            End If
         End If
     Next currentSheet
     
 End Sub
+
+'------------------------------------------------------------------------------
+' ## 除外設定値との照合(一致 = 0)
+'------------------------------------------------------------------------------
+Private Function matchExclusionaryValue _
+    (ByRef exclusionary_value() As String, _
+     ByVal current_value As String) As Long
+    
+    matchExclusionaryValue = 1
+    
+    ' 除外設定値が空の場合はスキップ
+    If CommonFunction.IsEmptyArray(exclusionary_value) Then Exit Function
+    
+    ' 一致する設定値がある場合は0になる
+    Dim i As Long
+    For i = 0 To UBound(exclusionary_value)
+        matchExclusionaryValue = matchExclusionaryValue * StrComp _
+            (exclusionary_value(i), current_value)
+    Next i
+    
+End Function
+
+'------------------------------------------------------------------------------
+' ## 除外行から減算行数の算出
+'------------------------------------------------------------------------------
+Private Function substractRowSize(ByRef exclusionary_row() As String, _
+                                  ByVal current_rowsize As Long) As Long
+    
+    substractRowSize = 0
+    
+    ' 除外設定値が空の場合はスキップ
+    If CommonFunction.IsEmptyArray(exclusionary_row) Then Exit Function
+    
+    ' 除外行が現在の最大行以下の場合をカウント
+    Dim i As Long
+    For i = 0 To UBound(exclusionary_row)
+        If exclusionary_row(i) <= current_rowsize Then
+            substractRowSize = substractRowSize + 1
+        End If
+    Next i
+    
+End Function
 
 '------------------------------------------------------------------------------
 ' ## シート名/行番号の付加および配列への格納
@@ -135,36 +189,23 @@ Private Sub storeToArray(ByRef source_file As Workbook, _
     
     Dim currentSheet As Worksheet
     Dim currentData As Variant
+    Dim skipSheet As Long, skipRow As Long
     Dim current_row As Long, current_col As Long
     Dim data_row As Long, data_col As Long
-    
-    Dim i As Long
-    Dim skipSheet As Long
-    Dim skipRow As Long
     
     data_row = 0
     For Each currentSheet In source_file.Worksheets
         ' 除外シート名を照合
-        skipSheet = 1
-        If Not CommonFunction.IsEmptyArray(exclusionary_sheet) Then
-            For i = 0 To UBound(exclusionary_sheet)
-                skipSheet = skipSheet * StrComp _
-                    (exclusionary_sheet(i), currentSheet.Name)
-            Next i
-        End If
+        skipSheet = _
+            matchExclusionaryValue(exclusionary_sheet, currentSheet.Name)
         If skipSheet <> 0 Then
             ' UsedRangeで配列化短縮化
             currentData = currentSheet.UsedRange
             If Not IsEmpty(currentData) Then
                 For current_row = 1 To UBound(currentData, 1)
                     ' 除外行番号を照合
-                    skipRow = 1
-                    If Not CommonFunction.IsEmptyArray(exclusionary_row) Then
-                        For i = 0 To UBound(exclusionary_row)
-                            skipRow = skipRow * StrComp _
-                                (exclusionary_row(i), current_row)
-                        Next i
-                    End If
+                    skipRow = _
+                        matchExclusionaryValue(exclusionary_row, current_row)
                     If skipRow <> 0 Then
                         data_row = data_row + 1
                         ' シート名/行番号の付加
